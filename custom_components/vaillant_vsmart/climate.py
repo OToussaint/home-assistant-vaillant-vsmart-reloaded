@@ -33,8 +33,8 @@ SUPPORTED_FEATURES = (
 SUPPORTED_HVAC_MODES = [HVACMode.AUTO, HVACMode.HEAT]
 SUPPORTED_PRESET_MODES = [PRESET_NONE, PRESET_AWAY]
 
-_HOME_ID = ""  # <-- Fill with your Home ID
-_ROOM_ID = ""  # <-- Fill with your Room ID
+_HOME_ID = ""
+_ROOM_ID = ""
 
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_devices: AddEntitiesCallback
@@ -196,11 +196,24 @@ class VaillantClimate(VaillantModuleEntity, ClimateEntity):
 
     async def async_set_temperature(self, **kwargs) -> None:
         """Update target room temperature value."""
+        global _HOME_ID                                                         
+        global _ROOM_ID 
 
         new_temperature = kwargs.get(ATTR_TEMPERATURE)
         if new_temperature is None:
             return
-
+            
+        if _HOME_ID == "":                                                 
+            try:                                                                   
+                _LOGGER.debug("set_temperature calling get_home_data")        
+                home_data = await self._client.async_get_home_data()            
+                for home in home_data:                                     
+                    _HOME_ID = home.home_id                                   
+                    _ROOM_ID = home.rooms[0].room_id                                                                   
+            except ApiException as ex:                                             
+                _LOGGER.error("Failed to fetch Vaillant home data: %s", ex)       
+                return 
+                
         _LOGGER.debug("Setting target temperature to: %s", new_temperature)
 
         endtime = datetime.now() + timedelta(
