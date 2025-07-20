@@ -124,7 +124,7 @@ class VaillantHwbSwitch(VaillantDeviceEntity, SwitchEntity):
         
         if _HOME_ID == "":                            
             try:                                                           
-                _LOGGER.debug("turn_off calling get_home_data")
+                _LOGGER.debug("turn_on calling get_home_data")
                 home_data = await self._client.async_get_home_data()
                 for home in home_data:                             
                     _HOME_ID = home.home_id                                   
