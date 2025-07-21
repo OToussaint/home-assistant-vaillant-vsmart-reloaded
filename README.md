@@ -29,7 +29,7 @@
 
 1. Open HACS
 1. Search for "Vaillant vSMART"
-    1. If it doesn't exist yet, you first need to add `https://github.com/OToussaint/home-assistant-vaillant-vsmart` as custom repository
+    1. If it doesn't exist yet, you first need to add `https://github.com/OToussaint/home-assistant-vaillant-vsmart-reloaded` as custom repository
 1. Click "Install this repository in HACS"
 1. Restart Home Assistant
 1. In the HA UI go to "Configuration" -> "Integrations" click "+" and search for "Vaillant vSMART"
@@ -84,13 +84,13 @@ Thanks to [@philippelt](https://github.com/philippelt), [@jabesq](https://github
 [maintainer]: https://github.com/OToussaint
 [maintainer-shield]: https://img.shields.io/badge/maintainer-%40OToussaint-blue.svg?style=for-the-badge
 
-[releases]: https://github.com/OToussaint/home-assistant-vaillant-vsmart/releases
+[releases]: https://github.com/OToussaint/home-assistant-vaillant-vsmart-reloaded-reloaded/releases
 [releases-shield]: https://img.shields.io/github/release/OToussaint/home-assistant-vaillant-vsmart.svg?style=for-the-badge
 
-[commits]: https://github.com/OToussaint/home-assistant-vaillant-vsmart/commits
+[commits]: https://github.com/OToussaint/home-assistant-vaillant-vsmart-reloaded/commits
 [commits-shield]: https://img.shields.io/github/commit-activity/y/OToussaint/home-assistant-vaillant-vsmart.svg?style=for-the-badge
 
-[license]: https://github.com/OToussaint/home-assistant-vaillant-vsmart/blob/master/LICENSE
+[license]: https://github.com/OToussaint/home-assistant-vaillant-vsmart-reloaded/blob/master/LICENSE
 [license-shield]: https://img.shields.io/github/license/OToussaint/home-assistant-vaillant-vsmart.svg?style=for-the-badge
 
 [hacs]: https://hacs.xyz
