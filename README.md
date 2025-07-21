@@ -29,7 +29,7 @@
 
 1. Open HACS
 1. Search for "Vaillant vSMART"
-    1. If it doesn't exist yet, you first need to add `https://github.com/MislavMandaric/home-assistant-vaillant-vsmart` as custom repository
+    1. If it doesn't exist yet, you first need to add `https://github.com/OToussaint/home-assistant-vaillant-vsmart` as custom repository
 1. Click "Install this repository in HACS"
 1. Restart Home Assistant
 1. In the HA UI go to "Configuration" -> "Integrations" click "+" and search for "Vaillant vSMART"
@@ -81,17 +81,17 @@ This integration is a complete rewrite of [@pjmaenh](https://github.com/pjmaenh)
 Thanks to [@philippelt](https://github.com/philippelt), [@jabesq](https://github.com/jabesq), [@samueldumont](https://github.com/samueldumont), [@jabesq](https://github.com/jabesq), [@pjmaenh](https://github.com/pjmaenh) and [@superbunika](https://github.com/superbunika) for providing many details of the underlying API, which this component uses.
 
 
-[maintainer]: https://github.com/MislavMandaric
-[maintainer-shield]: https://img.shields.io/badge/maintainer-%40MislavMandaric-blue.svg?style=for-the-badge
+[maintainer]: https://github.com/OToussaint
+[maintainer-shield]: https://img.shields.io/badge/maintainer-%40OToussaint-blue.svg?style=for-the-badge
 
-[releases]: https://github.com/MislavMandaric/home-assistant-vaillant-vsmart/releases
-[releases-shield]: https://img.shields.io/github/release/MislavMandaric/home-assistant-vaillant-vsmart.svg?style=for-the-badge
+[releases]: https://github.com/OToussaint/home-assistant-vaillant-vsmart/releases
+[releases-shield]: https://img.shields.io/github/release/OToussaint/home-assistant-vaillant-vsmart.svg?style=for-the-badge
 
-[commits]: https://github.com/MislavMandaric/home-assistant-vaillant-vsmart/commits
-[commits-shield]: https://img.shields.io/github/commit-activity/y/MislavMandaric/home-assistant-vaillant-vsmart.svg?style=for-the-badge
+[commits]: https://github.com/OToussaint/home-assistant-vaillant-vsmart/commits
+[commits-shield]: https://img.shields.io/github/commit-activity/y/OToussaint/home-assistant-vaillant-vsmart.svg?style=for-the-badge
 
-[license]: https://github.com/MislavMandaric/home-assistant-vaillant-vsmart/blob/master/LICENSE
-[license-shield]: https://img.shields.io/github/license/MislavMandaric/home-assistant-vaillant-vsmart.svg?style=for-the-badge
+[license]: https://github.com/OToussaint/home-assistant-vaillant-vsmart/blob/master/LICENSE
+[license-shield]: https://img.shields.io/github/license/OToussaint/home-assistant-vaillant-vsmart.svg?style=for-the-badge
 
 [hacs]: https://hacs.xyz
 [hacs-shield]: https://img.shields.io/badge/HACS-Default-orange.svg?style=for-the-badge
