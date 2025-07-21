@@ -72,7 +72,7 @@ If you want to contribute to this please read the [Contribution guidelines](CONT
 
 ## Credits
 
-This fork would not exist if it weren't for previous implementations by [@MislavMandaric](https://github.com/MislavMandaric)'s [Vaillant vSMART](https://github.com/MislavMandaric/home-assistant-vaillant-vsmart)'s project
+This fork would not exist if it weren't for previous implementations by [@MislavMandaric](https://github.com/MislavMandaric)'s [Vaillant vSMART](https://github.com/MislavMandaric/home-assistant-vaillant-vsmart) project
 
 This project was generated from [@oncleben31](https://github.com/oncleben31)'s [Home Assistant Custom Component Cookiecutter](https://github.com/oncleben31/cookiecutter-homeassistant-custom-component) template.
 
