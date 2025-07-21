@@ -72,6 +72,8 @@ If you want to contribute to this please read the [Contribution guidelines](CONT
 
 ## Credits
 
+This fork would not exist if it weren't for previous implementations by [@MislavMandaric](https://github.com/MislavMandaric)'s [Vaillant vSMART](https://github.com/MislavMandaric/vaillant-netatmo-api)'s project
+
 This project was generated from [@oncleben31](https://github.com/oncleben31)'s [Home Assistant Custom Component Cookiecutter](https://github.com/oncleben31/cookiecutter-homeassistant-custom-component) template.
 
 Code template was mainly taken from [@Ludeeus](https://github.com/ludeeus)'s [integration_blueprint](https://github.com/custom-components/integration_blueprint) template
