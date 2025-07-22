@@ -33,8 +33,7 @@ SUPPORTED_FEATURES = (
 SUPPORTED_HVAC_MODES = [HVACMode.AUTO, HVACMode.HEAT]
 SUPPORTED_PRESET_MODES = [PRESET_NONE, PRESET_AWAY]
 
-_HOME_ID = ""
-_ROOM_ID = ""
+homes_get_data = []
 
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_devices: AddEntitiesCallback
@@ -196,29 +195,39 @@ class VaillantClimate(VaillantModuleEntity, ClimateEntity):
 
     async def async_set_temperature(self, **kwargs) -> None:
         """Update target room temperature value."""
-        global _HOME_ID                                                         
-        global _ROOM_ID 
+        global homes_get_data
 
         new_temperature = kwargs.get(ATTR_TEMPERATURE)
         if new_temperature is None:
             return
             
-        if _HOME_ID == "":                                                 
-            try:                                                                   
-                _LOGGER.debug("set_temperature calling get_home_data")        
-                home_data = await self._client.async_get_home_data()            
-                for home in home_data:                                     
-                    _HOME_ID = home.home_id                                   
-                    _ROOM_ID = home.rooms[0].room_id                                                                   
-            except ApiException as ex:                                             
-                _LOGGER.error("Failed to fetch Vaillant home data: %s", ex)       
+        _LOGGER.debug("set_temperature called with arguments device_id %s module_id %s",self._device_id,self._module_id)
+
+        if len(homes_get_data)==0:
+            try:
+                _LOGGER.debug("set_temperature calling get_home_data") 
+                homes_get_data = await self._client.async_get_home_data() 
+            except ApiException as ex: 
+                _LOGGER.error("Failed to fetch Vaillant home data: %s", ex) 
                 return 
-                
+
+        if len(homes_get_data)==1:
+            _HOME_ID = homes_get_data[0].home_id
+            _ROOM_ID = homes_get_data[0].rooms[0].room_id 
+        else:
+            for home in homes_get_data:
+                if self._device_id == home.rooms[0].room_device_id:
+                    _HOME_ID = home.home_id 
+                    _ROOM_ID = home.rooms[0].room_id
+                    break
+
         _LOGGER.debug("Setting target temperature to: %s", new_temperature)
 
         endtime = datetime.now() + timedelta(
             minutes=self._device.setpoint_default_duration
         )
+
+        _LOGGER.debug("calling set_state_room home_id %s room_id %s",_HOME_ID,_ROOM_ID)
 
         try:
             await self._client.async_set_state_room(

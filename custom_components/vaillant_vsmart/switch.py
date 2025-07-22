@@ -16,7 +16,7 @@ from .entity import VaillantCoordinator, VaillantDeviceEntity, VaillantProgramEn
 
 _LOGGER: logging.Logger = logging.getLogger(__package__)
 
-_HOME_ID = ""
+homes_get_data = []
 
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_devices: AddEntitiesCallback
@@ -116,22 +116,32 @@ class VaillantHwbSwitch(VaillantDeviceEntity, SwitchEntity):
 
     async def async_turn_on(self, **kwargs):
         """Turn on the switch."""
-        global _HOME_ID
+        global homes_get_data
 
         endtime = datetime.now() + timedelta(
             minutes=self._device.setpoint_default_duration
         )
         
-        if _HOME_ID == "":                            
-            try:                                                           
-                _LOGGER.debug("turn_on calling get_home_data")
-                home_data = await self._client.async_get_home_data()
-                for home in home_data:                             
-                    _HOME_ID = home.home_id                                   
-            except ApiException as ex:               
-                _LOGGER.error("Failed to fetch Vaillant home data: %s", ex)
-                return  
-                
+        _LOGGER.debug("async_turn_on called with arguments device_id %s module_id %s",self._device_id,self._device.modules[0].id)
+
+        if len(homes_get_data)==0:
+            try:
+                _LOGGER.debug("aysn_turn_off calling get_home_data") 
+                homes_get_data = await self._client.async_get_home_data() 
+            except ApiException as ex: 
+                _LOGGER.error("Failed to fetch Vaillant home data: %s", ex) 
+                return 
+
+        if len(homes_get_data)==1:
+            _HOME_ID = homes_get_data[0].home_id
+        else:
+            for home in homes_get_data:
+                if self._device_id == home.modules[0].module_id:
+                    _HOME_ID = home.home_id 
+                    break
+
+        _LOGGER.debug("calling set_state_module home_id %s device_id %s",_HOME_ID,self._device_id)
+
         try:
             await self._client.async_set_state_module(
                 _HOME_ID,
@@ -147,18 +157,28 @@ class VaillantHwbSwitch(VaillantDeviceEntity, SwitchEntity):
 
     async def async_turn_off(self, **kwargs):
         """Turn off the switch."""
-        global _HOME_ID
-        
-        if _HOME_ID == "":                            
-            try:                                                           
-                _LOGGER.debug("turn_off calling get_home_data")
-                home_data = await self._client.async_get_home_data()
-                for home in home_data:                             
-                    _HOME_ID = home.home_id                                   
-            except ApiException as ex:               
-                _LOGGER.error("Failed to fetch Vaillant home data: %s", ex)
-                return  
-                
+        global homes_get_data
+
+        _LOGGER.debug("async_turn_off called with arguments device_id %s module_id %s",self._device_id,self._device.modules[0].id)
+
+        if len(homes_get_data)==0:
+            try:
+                _LOGGER.debug("aysn_turn_off calling get_home_data") 
+                homes_get_data = await self._client.async_get_home_data() 
+            except ApiException as ex: 
+                _LOGGER.error("Failed to fetch Vaillant home data: %s", ex) 
+                return 
+
+        if len(homes_get_data)==1:
+            _HOME_ID = homes_get_data[0].home_id
+        else:
+            for home in homes_get_data:
+                if self._device_id == home.modules[0].module_id:
+                    _HOME_ID = home.home_id 
+                    break
+
+        _LOGGER.debug("calling set_state_module home_id %s device_id %s",_HOME_ID,self._device_id)
+
         try:
             await self._client.async_set_state_module(
                 _HOME_ID,
