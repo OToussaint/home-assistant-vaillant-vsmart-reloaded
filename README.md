@@ -87,13 +87,13 @@ Thanks to [@philippelt](https://github.com/philippelt), [@jabesq](https://github
 [maintainer-shield]: https://img.shields.io/badge/maintainer-%40OToussaint-blue.svg?style=for-the-badge
 
 [releases]: https://github.com/OToussaint/home-assistant-vaillant-vsmart-reloaded/releases
-[releases-shield]: https://img.shields.io/github/release/OToussaint/home-assistant-vaillant-vsmart.svg?style=for-the-badge
+[releases-shield]: https://img.shields.io/github/release/OToussaint/home-assistant-vaillant-vsmart-reloaded.svg?style=for-the-badge
 
 [commits]: https://github.com/OToussaint/home-assistant-vaillant-vsmart-reloaded/commits
-[commits-shield]: https://img.shields.io/github/commit-activity/y/OToussaint/home-assistant-vaillant-vsmart.svg?style=for-the-badge
+[commits-shield]: https://img.shields.io/github/commit-activity/y/OToussaint/home-assistant-vaillant-vsmart-reloaded.svg?style=for-the-badge
 
 [license]: https://github.com/OToussaint/home-assistant-vaillant-vsmart-reloaded/blob/master/LICENSE
-[license-shield]: https://img.shields.io/github/license/OToussaint/home-assistant-vaillant-vsmart.svg?style=for-the-badge
+[license-shield]: https://img.shields.io/github/license/OToussaint/home-assistant-vaillant-vsmart-reloaded.svg?style=for-the-badge
 
 [hacs]: https://hacs.xyz
 [hacs-shield]: https://img.shields.io/badge/HACS-Default-orange.svg?style=for-the-badge
