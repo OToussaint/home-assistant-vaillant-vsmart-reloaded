@@ -86,7 +86,7 @@ Thanks to [@philippelt](https://github.com/philippelt), [@jabesq](https://github
 [maintainer]: https://github.com/OToussaint
 [maintainer-shield]: https://img.shields.io/badge/maintainer-%40OToussaint-blue.svg?style=for-the-badge
 
-[releases]: https://github.com/OToussaint/home-assistant-vaillant-vsmart-reloaded-reloaded/releases
+[releases]: https://github.com/OToussaint/home-assistant-vaillant-vsmart-reloaded/releases
 [releases-shield]: https://img.shields.io/github/release/OToussaint/home-assistant-vaillant-vsmart.svg?style=for-the-badge
 
 [commits]: https://github.com/OToussaint/home-assistant-vaillant-vsmart-reloaded/commits
