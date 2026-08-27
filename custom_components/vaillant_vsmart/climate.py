@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+import json
 import logging
 
 from homeassistant.components.climate import ClimateEntity
@@ -15,8 +16,14 @@ from homeassistant.components.climate.const import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import ATTR_TEMPERATURE, UnitOfTemperature
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from vaillant_netatmo_api import ApiException, SetpointMode, SystemMode
+from vaillant_netatmo_api import (
+    ApiException,
+    NonOkResponseException,
+    SetpointMode,
+    SystemMode,
+)
 
 from .const import (
     DOMAIN,
@@ -33,7 +40,48 @@ SUPPORTED_FEATURES = (
 SUPPORTED_HVAC_MODES = [HVACMode.AUTO, HVACMode.HEAT]
 SUPPORTED_PRESET_MODES = [PRESET_NONE, PRESET_AWAY]
 
-homes_get_data = []
+# Netatmo error code returned when the thermostat refuses an operation. The API
+# answers it with a 403, which the API client reports as an expired access
+# token.
+FORBIDDEN_OPERATION_ERROR = 13
+
+# Endpoint of the room based API, the one the thermostat still accepts setpoint
+# changes on. The API client hardcodes the setpoint mode of its own room call to
+# "manual", so returning a room to its schedule has to be posted here directly.
+SET_STATE_PATH = "syncapi/v1/setstate"
+
+# Setpoint mode which makes a room follow its schedule again. Same value as the
+# one the Netatmo integration of Home Assistant uses to leave a manual boost.
+SETPOINT_MODE_SCHEDULE = "home"
+
+RESPONSE_STATUS_OK = "ok"
+
+
+def _netatmo_error_code(ex: ApiException) -> int | None:
+    """Return the error code carried by an API error response, if any."""
+
+    response = getattr(ex, "response", None)
+
+    if not response:
+        return None
+
+    try:
+        return json.loads(response["body"])["error"]["code"]
+    except (KeyError, TypeError, ValueError):
+        return None
+
+
+def _api_error(action: str, ex: ApiException) -> HomeAssistantError:
+    """Turn an API exception into an error which can be shown to the user."""
+
+    if _netatmo_error_code(ex) == FORBIDDEN_OPERATION_ERROR:
+        return HomeAssistantError(
+            f"Vaillant refused to {action}. The thermostat does not accept this "
+            "change in its current system mode."
+        )
+
+    return HomeAssistantError(f"Error while trying to {action}: {ex}")
+
 
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_devices: AddEntitiesCallback
@@ -52,6 +100,15 @@ async def async_setup_entry(
 
 class VaillantClimate(VaillantModuleEntity, ClimateEntity):
     """Vaillant vSMART Climate."""
+
+    def __init__(self, coordinator, device_id: str, module_id: str) -> None:
+        """Initialize."""
+
+        super().__init__(coordinator, device_id, module_id)
+
+        self._home_id = None
+        self._room_id = None
+
 
     @property
     def name(self) -> str:
@@ -107,7 +164,14 @@ class VaillantClimate(VaillantModuleEntity, ClimateEntity):
 
     @property
     def hvac_mode(self) -> HVACMode:
-        """Return currently selected HVAC operation mode."""
+        """Return currently selected HVAC operation mode.
+
+        Only setpoints placed through the legacy endpoint show up here. A
+        setpoint placed on the room, which is what setting a temperature does,
+        is not part of the polled module data, so a manual setpoint can go
+        unnoticed. Reading it back would need the home status endpoint, which
+        the API client does not implement.
+        """
 
         if self._module.setpoint_manual.setpoint_activate:
             return HVACMode.HEAT
@@ -129,39 +193,88 @@ class VaillantClimate(VaillantModuleEntity, ClimateEntity):
 
         return PRESET_NONE
 
+    async def _async_home_and_room_ids(self) -> tuple[str, str]:
+        """Return the home and room this thermostat belongs to."""
+
+        if self._home_id is not None:
+            return self._home_id, self._room_id
+
+        try:
+            homes = await self._client.async_get_home_data()
+        except ApiException as ex:
+            raise _api_error("fetch the home data", ex) from ex
+        except NonOkResponseException as ex:
+            raise HomeAssistantError(f"Error while fetching the home data: {ex}") from ex
+
+        for home in homes:
+            for room in home.rooms:
+                if (
+                    room.room_module_id == self._module_id
+                    or room.room_device_id == self._device_id
+                ):
+                    self._home_id = home.home_id
+                    self._room_id = room.room_id
+
+                    return self._home_id, self._room_id
+
+        # A single home with a room which carries no module or relay id still
+        # leaves no doubt about which room is meant.
+        if len(homes) == 1 and homes[0].rooms:
+            self._home_id = homes[0].home_id
+            self._room_id = homes[0].rooms[0].room_id
+
+            return self._home_id, self._room_id
+
+        raise HomeAssistantError(
+            f"No room of the Vaillant home data matches module {self._module_id}"
+        )
+
+    async def _async_set_room_schedule(self) -> None:
+        """Make the room follow its schedule again.
+
+        Posted directly because the room call of the API client always sends a
+        manual setpoint, and the legacy endpoint which could cancel one is
+        refused by the thermostat with "Operation is forbidden".
+        """
+
+        home_id, room_id = await self._async_home_and_room_ids()
+
+        body = await self._client._post(
+            SET_STATE_PATH,
+            json={
+                "home": {
+                    "id": home_id,
+                    "rooms": [
+                        {
+                            "id": room_id,
+                            "therm_setpoint_mode": SETPOINT_MODE_SCHEDULE,
+                        }
+                    ],
+                }
+            },
+        )
+
+        if body.get("status") != RESPONSE_STATUS_OK:
+            raise HomeAssistantError(
+                f"Vaillant refused to switch to auto mode: {body}"
+            )
+
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         """Select new HVAC operation mode."""
 
         _LOGGER.debug("Setting HVAC mode to: %s", hvac_mode)
 
         if hvac_mode == HVACMode.HEAT:
-            endtime = datetime.now() + timedelta(
-                minutes=self._device.setpoint_default_duration
-            )
             new_temperature = (
                 self._module.measured.temperature + DEFAULT_TEMPERATURE_INCREASE
             )
-            try:
-                await self._client.async_set_minor_mode(
-                    self._device_id,
-                    self._module_id,
-                    SetpointMode.MANUAL,
-                    True,
-                    setpoint_endtime=endtime,
-                    setpoint_temp=new_temperature,
-                )
-            except ApiException as ex:
-                _LOGGER.exception(ex)
+
+            await self._async_set_room_temperature(new_temperature)
         elif hvac_mode == HVACMode.AUTO:
             try:
-                await self._client.async_set_minor_mode(
-                    self._device_id,
-                    self._module_id,
-                    SetpointMode.MANUAL,
-                    False,
-                )
+                await self._async_set_room_schedule()
             except ApiException as ex:
-                _LOGGER.exception(ex)
+                raise _api_error("switch to auto mode", ex) from ex
 
         await self.coordinator.async_request_refresh()
 
@@ -179,7 +292,7 @@ class VaillantClimate(VaillantModuleEntity, ClimateEntity):
                     True,
                 )
             except ApiException as ex:
-                _LOGGER.exception(ex)
+                raise _api_error("switch to away mode", ex) from ex
         elif preset_mode == PRESET_NONE:
             try:
                 await self._client.async_set_minor_mode(
@@ -189,56 +302,49 @@ class VaillantClimate(VaillantModuleEntity, ClimateEntity):
                     False,
                 )
             except ApiException as ex:
-                _LOGGER.exception(ex)
+                raise _api_error("cancel away mode", ex) from ex
 
         await self.coordinator.async_request_refresh()
 
-    async def async_set_temperature(self, **kwargs) -> None:
-        """Update target room temperature value."""
-        global homes_get_data
+    async def _async_set_room_temperature(self, new_temperature: float) -> None:
+        """Place a manual setpoint on the room of this thermostat."""
 
-        new_temperature = kwargs.get(ATTR_TEMPERATURE)
-        if new_temperature is None:
-            return
-            
-        _LOGGER.debug("set_temperature called with arguments device_id %s module_id %s",self._device_id,self._module_id)
-
-        if len(homes_get_data)==0:
-            try:
-                _LOGGER.debug("set_temperature calling get_home_data") 
-                homes_get_data = await self._client.async_get_home_data() 
-            except ApiException as ex: 
-                _LOGGER.error("Failed to fetch Vaillant home data: %s", ex) 
-                return 
-
-        if len(homes_get_data)==1:
-            _HOME_ID = homes_get_data[0].home_id
-            _ROOM_ID = homes_get_data[0].rooms[0].room_id 
-        else:
-            for home in homes_get_data:
-                if self._device_id == home.rooms[0].room_device_id:
-                    _HOME_ID = home.home_id 
-                    _ROOM_ID = home.rooms[0].room_id
-                    break
-
-        _LOGGER.debug("Setting target temperature to: %s", new_temperature)
+        home_id, room_id = await self._async_home_and_room_ids()
 
         endtime = datetime.now() + timedelta(
             minutes=self._device.setpoint_default_duration
         )
 
-        _LOGGER.debug("calling set_state_room home_id %s room_id %s",_HOME_ID,_ROOM_ID)
+        _LOGGER.debug(
+            "Setting target temperature to %s for home %s room %s",
+            new_temperature,
+            home_id,
+            room_id,
+        )
 
         try:
             await self._client.async_set_state_room(
-                _HOME_ID,
-                _ROOM_ID,
+                home_id,
+                room_id,
                 SetpointMode.MANUAL,
                 True,
                 setpoint_endtime=endtime,
                 setpoint_temp=new_temperature,
             )
         except ApiException as ex:
-            _LOGGER.exception(ex)
+            raise _api_error("set the target temperature", ex) from ex
+        except NonOkResponseException as ex:
+            raise HomeAssistantError(
+                f"Vaillant refused to set the target temperature: {ex}"
+            ) from ex
+
+    async def async_set_temperature(self, **kwargs) -> None:
+        """Update target room temperature value."""
+
+        new_temperature = kwargs.get(ATTR_TEMPERATURE)
+        if new_temperature is None:
+            return
+
+        await self._async_set_room_temperature(new_temperature)
 
         await self.coordinator.async_request_refresh()
