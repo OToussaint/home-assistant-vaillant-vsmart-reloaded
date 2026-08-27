@@ -50,9 +50,17 @@ FORBIDDEN_OPERATION_ERROR = 13
 # "manual", so returning a room to its schedule has to be posted here directly.
 SET_STATE_PATH = "syncapi/v1/setstate"
 
+# Endpoint of the home wide modes, away among them.
+SET_THERM_MODE_PATH = "api/setthermmode"
+
 # Setpoint mode which makes a room follow its schedule again. Same value as the
 # one the Netatmo integration of Home Assistant uses to leave a manual boost.
 SETPOINT_MODE_SCHEDULE = "home"
+
+# Home modes. Beware of the asymmetry with the room setpoint above: following
+# the schedule is "home" for a room but "schedule" for the home.
+HOME_MODE_AWAY = "away"
+HOME_MODE_SCHEDULE = "schedule"
 
 RESPONSE_STATUS_OK = "ok"
 
@@ -186,7 +194,11 @@ class VaillantClimate(VaillantModuleEntity, ClimateEntity):
 
     @property
     def preset_mode(self) -> str:
-        """Return the currently selected HVAC preset mode."""
+        """Return the currently selected HVAC preset mode.
+
+        Away set on the home is no more visible here than a manual setpoint set
+        on the room, for the same reason.
+        """
 
         if self._module.setpoint_away.setpoint_activate:
             return PRESET_AWAY
@@ -278,31 +290,38 @@ class VaillantClimate(VaillantModuleEntity, ClimateEntity):
 
         await self.coordinator.async_request_refresh()
 
+    async def _async_set_home_mode(self, mode: str, action: str) -> None:
+        """Set the mode of the whole home.
+
+        Away is a mode of the home, not a setpoint of the room, so it goes to
+        its own endpoint. The API client has no method for it, so the call is
+        posted directly, same as the room schedule one.
+        """
+
+        home_id, _ = await self._async_home_and_room_ids()
+
+        try:
+            body = await self._client._post(
+                SET_THERM_MODE_PATH,
+                data={"home_id": home_id, "mode": mode},
+            )
+        except ApiException as ex:
+            raise _api_error(action, ex) from ex
+
+        if body.get("status") != RESPONSE_STATUS_OK:
+            raise HomeAssistantError(f"Vaillant refused to {action}: {body}")
+
     async def async_set_preset_mode(self, preset_mode: str) -> None:
         """Select new HVAC preset mode."""
 
         _LOGGER.debug("Setting HVAC preset mode to: %s", preset_mode)
 
         if preset_mode == PRESET_AWAY:
-            try:
-                await self._client.async_set_minor_mode(
-                    self._device_id,
-                    self._module_id,
-                    SetpointMode.AWAY,
-                    True,
-                )
-            except ApiException as ex:
-                raise _api_error("switch to away mode", ex) from ex
+            await self._async_set_home_mode(HOME_MODE_AWAY, "switch to away mode")
         elif preset_mode == PRESET_NONE:
-            try:
-                await self._client.async_set_minor_mode(
-                    self._device_id,
-                    self._module_id,
-                    SetpointMode.AWAY,
-                    False,
-                )
-            except ApiException as ex:
-                raise _api_error("cancel away mode", ex) from ex
+            await self._async_set_home_mode(HOME_MODE_SCHEDULE, "cancel away mode")
+        else:
+            raise HomeAssistantError(f"Unsupported preset mode: {preset_mode}")
 
         await self.coordinator.async_request_refresh()
 
