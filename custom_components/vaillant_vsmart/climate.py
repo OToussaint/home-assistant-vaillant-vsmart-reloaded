@@ -131,19 +131,19 @@ class VaillantClimate(VaillantModuleEntity, ClimateEntity):
         return SUPPORTED_FEATURES
 
     @property
-    def temperature_unit(self) -> str:
+    def native_temperature_unit(self) -> str:
         """Return the measurement unit for all temperature values."""
 
         return UnitOfTemperature.CELSIUS
 
     @property
-    def current_temperature(self) -> float:
+    def native_current_temperature(self) -> float:
         """Return the current room temperature."""
 
         return self._module.measured.temperature
 
     @property
-    def target_temperature(self) -> float:
+    def native_target_temperature(self) -> float:
         """Return the targeted room temperature."""
 
         return (
