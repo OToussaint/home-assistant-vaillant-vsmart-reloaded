@@ -3,8 +3,10 @@ from datetime import timedelta, datetime
 import logging
 from typing import Any
 
-from homeassistant.core import HomeAssistant
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryAuthFailed
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.update_coordinator import (
     CoordinatorEntity,
     DataUpdateCoordinator,
@@ -85,6 +87,32 @@ class VaillantCoordinator(DataUpdateCoordinator[VaillantData]):
         self._client = client
         self._measurements = {}
         self._measurements_updated_at = None
+
+        # Registry id of each device, keyed by the id the API gives it. The
+        # entities of a module hang off the device they belong to, and the
+        # device registry wants that link as a registry id.
+        self.registry_device_ids: dict[str, str] = {}
+
+    @callback
+    def register_devices(self, entry: ConfigEntry) -> None:
+        """Register the devices, so their modules can point at them.
+
+        Called once the first refresh has the devices, and before the
+        platforms are set up, so every module entity finds its device.
+        """
+
+        registry = dr.async_get(self.hass)
+
+        self.registry_device_ids = {
+            device.id: registry.async_get_or_create(
+                config_entry_id=entry.entry_id,
+                identifiers={(DOMAIN, device.id)},
+                name=device.station_name,
+                manufacturer=device.type,
+                sw_version=_format_sw_version(device.firmware),
+            ).id
+            for device in self.data.devices.values()
+        }
 
     async def _update_method(self):
         """Fetch data from API endpoint.
@@ -269,7 +297,9 @@ class VaillantModuleEntity(CoordinatorEntity[VaillantData]):
             "name": self._module.module_name,
             "sw_version": _format_sw_version(self._module.firmware),
             "manufacturer": self._device.type,
-            "via_device": (DOMAIN, self._device.id),
+            "via_device_id": self.coordinator.registry_device_ids.get(
+                self._device_id
+            ),
         }
 
 
@@ -336,7 +366,9 @@ class VaillantProgramEntity(CoordinatorEntity[VaillantData]):
             "name": self._module.module_name,
             "sw_version": _format_sw_version(self._module.firmware),
             "manufacturer": self._device.type,
-            "via_device": (DOMAIN, self._device.id),
+            "via_device_id": self.coordinator.registry_device_ids.get(
+                self._device_id
+            ),
         }
 
 
@@ -420,5 +452,7 @@ class VaillantMeasurementEntity(CoordinatorEntity[VaillantData]):
             "name": self._module.module_name,
             "sw_version": _format_sw_version(self._module.firmware),
             "manufacturer": self._device.type,
-            "via_device": (DOMAIN, self._device.id),
+            "via_device_id": self.coordinator.registry_device_ids.get(
+                self._device_id
+            ),
         }
